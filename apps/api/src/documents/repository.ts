@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import type { AppDatabase } from "../db/client.ts";
 import { documents, type DocumentRecord } from "../db/schema.ts";
 
@@ -20,7 +20,11 @@ function normalizeTitle(title: string | undefined) {
 export function createDocumentRepository(db: AppDatabase) {
   return {
     list(): DocumentRecord[] {
-      return db.select().from(documents).orderBy(desc(documents.updatedAt)).all();
+      return db
+        .select()
+        .from(documents)
+        .orderBy(desc(documents.updatedAt), sql`rowid desc`)
+        .all();
     },
 
     findById(id: string): DocumentRecord | null {
