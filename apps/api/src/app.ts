@@ -15,7 +15,7 @@ async function readJson(c: Context): Promise<
     }
 > {
   const body = await c.req.text();
-  if (body.trim() === "") {
+  if (body === "") {
     return { ok: true, value: {} };
   }
 

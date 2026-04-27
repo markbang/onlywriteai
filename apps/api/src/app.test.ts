@@ -150,6 +150,21 @@ test("returns a JSON error for malformed create bodies", async () => {
   });
 });
 
+test("returns a JSON error for whitespace-only create bodies", async () => {
+  const { app } = createTestApp();
+
+  const response = await app.request("/documents", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "   ",
+  });
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: { message: "Invalid JSON body" },
+  });
+});
+
 test("returns a JSON error for malformed update bodies", async () => {
   const { app } = createTestApp();
   const createdResponse = await app.request("/documents", {
@@ -163,6 +178,27 @@ test("returns a JSON error for malformed update bodies", async () => {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: "{",
+  });
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: { message: "Invalid JSON body" },
+  });
+});
+
+test("returns a JSON error for whitespace-only update bodies", async () => {
+  const { app } = createTestApp();
+  const createdResponse = await app.request("/documents", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title: "Draft", content: "Body" }),
+  });
+  const created = await readDocument(createdResponse);
+
+  const response = await app.request(`/documents/${created.id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: "   ",
   });
 
   expect(response.status).toBe(400);
