@@ -3,12 +3,26 @@ import type { AppDatabase } from "./db/client.ts";
 import { createDocumentRepository } from "./documents/repository.ts";
 
 const notFoundError = { error: { message: "Document not found" } };
+const invalidJsonError = { error: { message: "Invalid JSON body" } };
 
-async function readJson(c: Context): Promise<unknown> {
+async function readJson(c: Context): Promise<
+  | {
+      ok: true;
+      value: unknown;
+    }
+  | {
+      ok: false;
+    }
+> {
+  const body = await c.req.text();
+  if (body.trim() === "") {
+    return { ok: true, value: {} };
+  }
+
   try {
-    return await c.req.json();
+    return { ok: true, value: JSON.parse(body) };
   } catch {
-    return {};
+    return { ok: false };
   }
 }
 
@@ -33,7 +47,12 @@ export function createApp(db: AppDatabase) {
   app.get("/documents", (c) => c.json(repository.list()));
 
   app.post("/documents", async (c) => {
-    const input = readDocumentInput(await readJson(c));
+    const body = await readJson(c);
+    if (!body.ok) {
+      return c.json(invalidJsonError, 400);
+    }
+
+    const input = readDocumentInput(body.value);
     return c.json(repository.create(input), 201);
   });
 
@@ -47,7 +66,12 @@ export function createApp(db: AppDatabase) {
   });
 
   app.patch("/documents/:id", async (c) => {
-    const input = readDocumentInput(await readJson(c));
+    const body = await readJson(c);
+    if (!body.ok) {
+      return c.json(invalidJsonError, 400);
+    }
+
+    const input = readDocumentInput(body.value);
     const document = repository.update(c.req.param("id"), input);
     if (!document) {
       return c.json(notFoundError, 404);

@@ -112,7 +112,7 @@ test("returns a consistent JSON error for missing documents", async () => {
   }
 });
 
-test("treats missing or invalid JSON bodies as empty objects", async () => {
+test("treats missing JSON bodies as empty objects", async () => {
   const { app } = createTestApp();
 
   const missingBodyResponse = await app.request("/documents", {
@@ -120,19 +120,53 @@ test("treats missing or invalid JSON bodies as empty objects", async () => {
   });
   const missingBody = await readDocument(missingBodyResponse);
 
-  const invalidBodyResponse = await app.request(`/documents/${missingBody.id}`, {
+  const emptyPatchResponse = await app.request(`/documents/${missingBody.id}`, {
+    method: "PATCH",
+  });
+  const emptyPatch = await readDocument(emptyPatchResponse);
+
+  expect(missingBodyResponse.status).toBe(201);
+  expect(missingBody).toMatchObject({ title: "Untitled", content: "" });
+  expect(emptyPatchResponse.status).toBe(200);
+  expect(emptyPatch).toMatchObject({
+    id: missingBody.id,
+    title: "Untitled",
+    content: "",
+  });
+});
+
+test("returns a JSON error for malformed create bodies", async () => {
+  const { app } = createTestApp();
+
+  const response = await app.request("/documents", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{",
+  });
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: { message: "Invalid JSON body" },
+  });
+});
+
+test("returns a JSON error for malformed update bodies", async () => {
+  const { app } = createTestApp();
+  const createdResponse = await app.request("/documents", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title: "Draft", content: "Body" }),
+  });
+  const created = await readDocument(createdResponse);
+
+  const response = await app.request(`/documents/${created.id}`, {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: "{",
   });
-  const invalidBody = await readDocument(invalidBodyResponse);
 
-  expect(missingBodyResponse.status).toBe(201);
-  expect(missingBody).toMatchObject({ title: "Untitled", content: "" });
-  expect(invalidBodyResponse.status).toBe(200);
-  expect(invalidBody).toMatchObject({
-    id: missingBody.id,
-    title: "Untitled",
-    content: "",
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: { message: "Invalid JSON body" },
   });
 });
