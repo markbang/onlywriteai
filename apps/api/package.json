@@ -1,0 +1,25 @@
+{
+  "name": "api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp exec tsx src/server.ts",
+    "build": "tsc --noEmit",
+    "test": "vp test",
+    "check": "vp check"
+  },
+  "dependencies": {
+    "@hono/node-server": "catalog:",
+    "better-sqlite3": "catalog:",
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "catalog:",
+    "tsx": "^4.20.3",
+    "typescript": "^6.0.2",
+    "vite-plus": "catalog:"
+  }
+}
