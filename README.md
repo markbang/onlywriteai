@@ -1,29 +1,32 @@
-# Vite+ Monorepo Starter
+# OnlyWrite
 
-A starter for creating a Vite+ monorepo.
+OnlyWrite is a local-first writing app starter built with Vite+.
+
+## Apps
+
+- `apps/website`: React, TanStack Router, TanStack Query, UnoCSS.
+- `apps/api`: Hono, Drizzle, SQLite.
 
 ## Development
 
-- Check everything is ready:
+Install dependencies:
 
 ```bash
-vp run ready
+vp install
 ```
 
-- Run the tests:
-
-```bash
-vp run -r test
-```
-
-- Build the monorepo:
-
-```bash
-vp run -r build
-```
-
-- Run the development server:
+Run website and API:
 
 ```bash
 vp run dev
 ```
+
+Run checks:
+
+```bash
+vp check
+vp test
+vp run -r build
+```
+
+The API stores local development data in `apps/api/data/onlywrite.sqlite`.
