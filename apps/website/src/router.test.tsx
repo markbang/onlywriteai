@@ -31,6 +31,20 @@ function stubApi(documents: unknown[]) {
         return Response.json(documents);
       }
 
+      if (url === "/api/documents/doc-1") {
+        return Response.json({
+          id: "doc-1",
+          title: "Draft",
+          content: "Body",
+          createdAt: 1,
+          updatedAt: 1,
+        });
+      }
+
+      if (url === "/api/documents/doc-1/sources") {
+        return Response.json([]);
+      }
+
       return Response.json({ error: { message: "Not found" } }, { status: 404 });
     }),
   );
@@ -59,4 +73,14 @@ test("wraps long document titles in the document list", async () => {
   renderRouter();
 
   expect((await screen.findByText(longTitle)).className).toContain("break-words");
+});
+
+test("renders document workspace with sources and editor", async () => {
+  window.history.pushState({}, "", "/documents/doc-1");
+  stubApi([]);
+
+  renderRouter();
+
+  expect(await screen.findByText("Sources")).toBeTruthy();
+  expect(await screen.findByDisplayValue("Draft")).toBeTruthy();
 });
