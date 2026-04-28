@@ -1,4 +1,3 @@
-import "../test/setup.ts";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, test, vi } from "vite-plus/test";

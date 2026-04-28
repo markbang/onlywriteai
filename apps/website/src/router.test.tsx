@@ -1,4 +1,3 @@
-import "./test/setup.ts";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";

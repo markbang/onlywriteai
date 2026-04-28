@@ -25,7 +25,7 @@ Run checks:
 
 ```bash
 vp check
-vp test
+vp run -r test
 vp run -r build
 ```
 
