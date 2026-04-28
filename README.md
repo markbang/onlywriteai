@@ -15,7 +15,9 @@ Install dependencies:
 vp install
 ```
 
-Run website and API:
+Run website and API with `vp run dev`.
+
+This starts `apps/website` and `apps/api`. The utility package is not watched during app development.
 
 ```bash
 vp run dev
