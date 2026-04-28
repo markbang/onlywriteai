@@ -254,7 +254,7 @@ export function SourcePanel({ documentId }: SourcePanelProps) {
               <div className="flex shrink-0 gap-2">
                 <button
                   type="button"
-                  className="text-xs font-medium text-neutral-600 underline"
+                  className="rounded border border-stone-200 bg-white px-2 py-1 text-xs font-medium text-neutral-600 hover:bg-stone-50"
                   onClick={() => startEditing(source)}
                   aria-label={`Edit ${source.title}`}
                 >
@@ -262,7 +262,7 @@ export function SourcePanel({ documentId }: SourcePanelProps) {
                 </button>
                 <button
                   type="button"
-                  className="text-xs font-medium text-red-700 underline"
+                  className="rounded border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
                   onClick={() => deleteSource.mutate(source.id)}
                   aria-label={`Delete ${source.title}`}
                 >
