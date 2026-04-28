@@ -1,15 +1,9 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vite-plus/test";
+import { render, screen } from "@testing-library/react";
+import { expect, test, vi } from "vite-plus/test";
 import { createQueryClient } from "./query.ts";
 import { createAppRouter } from "./router.tsx";
-
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-  window.history.pushState({}, "", "/");
-});
 
 function renderRouter() {
   const router = createAppRouter();

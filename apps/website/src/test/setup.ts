@@ -1,5 +1,5 @@
 import { JSDOM } from "jsdom";
-import { vi } from "vite-plus/test";
+import { afterEach, vi } from "vite-plus/test";
 
 if (typeof window === "undefined") {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", {
@@ -28,4 +28,15 @@ if (typeof window === "undefined") {
 Object.defineProperty(window, "scrollTo", {
   configurable: true,
   value: vi.fn(),
+});
+
+const { cleanup } = await import("@testing-library/react");
+
+afterEach(() => {
+  cleanup();
+  document.body.replaceChildren();
+  window.history.replaceState({}, "", "/");
+  vi.unstubAllGlobals();
+  vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
