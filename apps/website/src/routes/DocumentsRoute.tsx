@@ -3,8 +3,14 @@ import { Link } from "@tanstack/react-router";
 import { listDocuments } from "../api/documents.ts";
 
 function formatDate(value: number) {
+  const date = new Date(value);
+
+  if (!Number.isFinite(value) || Number.isNaN(date.getTime())) {
+    return "Date unavailable";
+  }
+
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
-    value,
+    date,
   );
 }
 
@@ -39,7 +45,7 @@ export function DocumentsRoute() {
               params={{ documentId: document.id }}
               className="block px-4 py-3 hover:bg-stone-50"
             >
-              <div className="font-medium text-neutral-950">{document.title}</div>
+              <div className="break-words font-medium text-neutral-950">{document.title}</div>
               <div className="mt-1 text-xs text-neutral-500">{formatDate(document.updatedAt)}</div>
             </Link>
           ))
