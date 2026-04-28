@@ -11,6 +11,30 @@ export type DocumentInput = {
   content?: string;
 };
 
+export type DocumentSourceType = "text" | "rss" | "pdf" | "image";
+
+export type DocumentSource = {
+  id: string;
+  documentId: string;
+  type: DocumentSourceType;
+  title: string;
+  note: string;
+  url: string | null;
+  fileName: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type DocumentSourceInput = {
+  type: DocumentSourceType;
+  title?: string;
+  note?: string;
+  url?: string;
+  fileName?: string;
+};
+
+export type DocumentSourceUpdate = Partial<DocumentSourceInput>;
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -85,4 +109,41 @@ export function updateDocument(id: string, input: DocumentInput, fetcher?: typeo
 
 export function deleteDocument(id: string, fetcher?: typeof fetch) {
   return request<void>(`/documents/${id}`, { method: "DELETE" }, fetcher);
+}
+
+export function listDocumentSources(documentId: string, fetcher?: typeof fetch) {
+  return request<DocumentSource[]>(`/documents/${documentId}/sources`, {}, fetcher);
+}
+
+export function createDocumentSource(
+  documentId: string,
+  input: DocumentSourceInput,
+  fetcher?: typeof fetch,
+) {
+  return request<DocumentSource>(
+    `/documents/${documentId}/sources`,
+    { method: "POST", body: JSON.stringify(input) },
+    fetcher,
+  );
+}
+
+export function updateDocumentSource(
+  documentId: string,
+  sourceId: string,
+  input: DocumentSourceUpdate,
+  fetcher?: typeof fetch,
+) {
+  return request<DocumentSource>(
+    `/documents/${documentId}/sources/${sourceId}`,
+    { method: "PATCH", body: JSON.stringify(input) },
+    fetcher,
+  );
+}
+
+export function deleteDocumentSource(documentId: string, sourceId: string, fetcher?: typeof fetch) {
+  return request<void>(
+    `/documents/${documentId}/sources/${sourceId}`,
+    { method: "DELETE" },
+    fetcher,
+  );
 }
