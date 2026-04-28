@@ -174,6 +174,20 @@ test("normalizes source defaults and preserves unspecified update fields", () =>
   });
 });
 
+test("rejects invalid source types", () => {
+  const { repository } = createTempDatabase();
+  const document = repository.create({ title: "Draft" });
+  const source = repository.createSource(document.id, {
+    type: "text",
+    title: "Valid",
+  });
+
+  expect(repository.createSource(document.id, { type: "video", title: "Invalid" })).toBeNull();
+  expect(
+    repository.updateSource(document.id, source?.id ?? "missing", { type: "video" }),
+  ).toBeNull();
+});
+
 test("lists sources by newest update first with deterministic tie breaker", async () => {
   const { repository } = createTempDatabase();
   const document = repository.create({ title: "Draft" });

@@ -24,7 +24,7 @@ export function createDatabase(path: string) {
     create table if not exists document_sources (
       id text primary key,
       document_id text not null references documents(id) on delete cascade,
-      type text not null,
+      type text not null check (type in ('text', 'rss', 'pdf', 'image')),
       title text not null,
       note text not null,
       url text,

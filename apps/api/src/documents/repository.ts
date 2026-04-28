@@ -3,6 +3,7 @@ import type { AppDatabase } from "../db/client.ts";
 import {
   documentSources,
   documents,
+  isDocumentSourceType,
   type DocumentRecord,
   type DocumentSourceRecord,
   type DocumentSourceType,
@@ -19,7 +20,7 @@ export type DocumentUpdate = {
 };
 
 export type DocumentSourceInput = {
-  type: DocumentSourceType;
+  type: string;
   title?: string;
   note?: string;
   url?: string;
@@ -27,7 +28,7 @@ export type DocumentSourceInput = {
 };
 
 export type DocumentSourceUpdate = {
-  type?: DocumentSourceType;
+  type?: string;
   title?: string;
   note?: string;
   url?: string;
@@ -50,6 +51,10 @@ function normalizeOptionalText(value: string | undefined) {
 }
 
 export function createDocumentRepository(db: AppDatabase) {
+  function findById(id: string): DocumentRecord | null {
+    return db.select().from(documents).where(eq(documents.id, id)).get() ?? null;
+  }
+
   return {
     list(): DocumentRecord[] {
       return db
@@ -60,7 +65,7 @@ export function createDocumentRepository(db: AppDatabase) {
     },
 
     findById(id: string): DocumentRecord | null {
-      return db.select().from(documents).where(eq(documents.id, id)).get() ?? null;
+      return findById(id);
     },
 
     create(input: DocumentInput): DocumentRecord {
@@ -78,7 +83,7 @@ export function createDocumentRepository(db: AppDatabase) {
     },
 
     update(id: string, input: DocumentUpdate): DocumentRecord | null {
-      const existing = this.findById(id);
+      const existing = findById(id);
       if (!existing) {
         return null;
       }
@@ -90,11 +95,10 @@ export function createDocumentRepository(db: AppDatabase) {
       };
 
       db.update(documents).set(next).where(eq(documents.id, id)).run();
-      return this.findById(id);
+      return findById(id);
     },
 
     delete(id: string): boolean {
-      db.delete(documentSources).where(eq(documentSources.documentId, id)).run();
       const result = db.delete(documents).where(eq(documents.id, id)).run();
       return result.changes > 0;
     },
@@ -109,7 +113,7 @@ export function createDocumentRepository(db: AppDatabase) {
     },
 
     createSource(documentId: string, input: DocumentSourceInput): DocumentSourceRecord | null {
-      if (!this.findById(documentId)) {
+      if (!findById(documentId) || !isDocumentSourceType(input.type)) {
         return null;
       }
 
@@ -117,7 +121,7 @@ export function createDocumentRepository(db: AppDatabase) {
       const record = {
         id: crypto.randomUUID(),
         documentId,
-        type: input.type,
+        type: input.type satisfies DocumentSourceType,
         title: normalizeSourceTitle(input.title),
         note: input.note ?? "",
         url: normalizeOptionalText(input.url),
@@ -143,6 +147,9 @@ export function createDocumentRepository(db: AppDatabase) {
           .get() ?? null;
 
       if (!existing) {
+        return null;
+      }
+      if (input.type !== undefined && !isDocumentSourceType(input.type)) {
         return null;
       }
 
