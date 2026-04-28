@@ -1,8 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { deleteDocument, updateDocument } from "../api/documents.ts";
 import type { Document } from "../api/documents.ts";
+
+type DocumentDraft = {
+  title: string;
+  content: string;
+};
 
 type DocumentEditorProps = {
   document: Document;
@@ -13,6 +18,7 @@ export function DocumentEditor({ document, onDeleted }: DocumentEditorProps) {
   const [title, setTitle] = useState(document.title);
   const [content, setContent] = useState(document.content);
   const [isSaved, setIsSaved] = useState(false);
+  const currentDraft = useRef<DocumentDraft>({ title: document.title, content: document.content });
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -20,20 +26,28 @@ export function DocumentEditor({ document, onDeleted }: DocumentEditorProps) {
     setTitle(document.title);
     setContent(document.content);
     setIsSaved(false);
+    currentDraft.current = { title: document.title, content: document.content };
   }, [document]);
 
   const saveDocument = useMutation({
-    mutationFn: () => updateDocument(document.id, { title, content }),
-    onSuccess: (updatedDocument) => {
-      queryClient.setQueryData(["document", document.id], updatedDocument);
+    mutationFn: (draft: DocumentDraft) => updateDocument(document.id, draft),
+    onSuccess: (updatedDocument, submittedDraft) => {
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
-      setIsSaved(true);
+
+      if (
+        currentDraft.current.title === submittedDraft.title &&
+        currentDraft.current.content === submittedDraft.content
+      ) {
+        queryClient.setQueryData(["document", document.id], updatedDocument);
+        setIsSaved(true);
+      }
     },
   });
 
   const removeDocument = useMutation({
     mutationFn: () => deleteDocument(document.id),
     onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["document", document.id], exact: true });
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
       onDeleted?.();
       void navigate({ to: "/documents" });
@@ -42,13 +56,28 @@ export function DocumentEditor({ document, onDeleted }: DocumentEditorProps) {
 
   function handleTitleChange(value: string) {
     setTitle(value);
+    currentDraft.current = { title: value, content };
     setIsSaved(false);
   }
 
   function handleContentChange(value: string) {
     setContent(value);
+    currentDraft.current = { title, content: value };
     setIsSaved(false);
   }
+
+  const statusMessage = saveDocument.isPending
+    ? "Saving..."
+    : removeDocument.isPending
+      ? "Deleting..."
+      : isSaved
+        ? "Saved"
+        : "";
+  const errorMessage = removeDocument.isError
+    ? "Could not delete document."
+    : saveDocument.isError
+      ? "Could not save changes."
+      : "";
 
   return (
     <article className="mx-auto flex max-w-3xl flex-col gap-5">
@@ -66,16 +95,19 @@ export function DocumentEditor({ document, onDeleted }: DocumentEditorProps) {
       />
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-4">
         <div className="min-h-5 text-sm">
-          {saveDocument.isPending ? <span className="text-neutral-500">Saving...</span> : null}
-          {isSaved && !saveDocument.isPending ? (
-            <span className="text-green-700">Saved</span>
+          {errorMessage ? (
+            <span className="text-red-700" role="alert">
+              {errorMessage}
+            </span>
           ) : null}
-          {saveDocument.isError ? (
-            <span className="text-red-700">Could not save changes.</span>
-          ) : null}
-          {removeDocument.isPending ? <span className="text-neutral-500">Deleting...</span> : null}
-          {removeDocument.isError ? (
-            <span className="text-red-700">Could not delete document.</span>
+          {statusMessage && !errorMessage ? (
+            <span
+              className={isSaved ? "text-green-700" : "text-neutral-500"}
+              role="status"
+              aria-live="polite"
+            >
+              {statusMessage}
+            </span>
           ) : null}
         </div>
         <div className="flex items-center gap-2">
@@ -91,7 +123,7 @@ export function DocumentEditor({ document, onDeleted }: DocumentEditorProps) {
             className="rounded bg-neutral-950 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
             type="button"
             disabled={saveDocument.isPending || removeDocument.isPending}
-            onClick={() => saveDocument.mutate()}
+            onClick={() => saveDocument.mutate({ title, content })}
           >
             {saveDocument.isPending ? "Saving..." : "Save"}
           </button>

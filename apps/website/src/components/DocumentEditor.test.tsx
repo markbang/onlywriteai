@@ -45,6 +45,17 @@ function renderEditor(onDeleted = vi.fn()) {
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, reject, resolve };
+}
+
 test("renders editable document fields and action buttons", () => {
   renderEditor();
 
@@ -72,13 +83,37 @@ test("saves edited title and content", async () => {
   expect(queryClient.getQueryData(["document", document.id])).toEqual(updatedDocument);
 });
 
+test("does not mark a stale save response as saved or cache stale fields", async () => {
+  const save = deferred<Document>();
+  updateDocument.mockReturnValueOnce(save.promise);
+  const { queryClient } = renderEditor();
+  queryClient.setQueryData(["document", document.id], document);
+
+  fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Submitted title" } });
+  fireEvent.change(screen.getByLabelText("Content"), { target: { value: "Submitted body" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Newer title" } });
+  fireEvent.change(screen.getByLabelText("Content"), { target: { value: "Newer body" } });
+
+  save.resolve({ ...document, title: "Submitted title", content: "Submitted body" });
+
+  await waitFor(() => expect(updateDocument).toHaveBeenCalledOnce());
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeTruthy());
+  expect(screen.queryByText("Saved")).toBeNull();
+  expect(screen.getByLabelText("Title")).toHaveProperty("value", "Newer title");
+  expect(screen.getByLabelText("Content")).toHaveProperty("value", "Newer body");
+  expect(queryClient.getQueryData(["document", document.id])).toEqual(document);
+});
+
 test("deletes the document and notifies parent", async () => {
   deleteDocument.mockResolvedValueOnce(undefined);
-  const { onDeleted } = renderEditor();
+  const { onDeleted, queryClient } = renderEditor();
+  queryClient.setQueryData(["document", document.id], document);
 
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
   await waitFor(() => expect(deleteDocument).toHaveBeenCalledWith(document.id));
+  expect(queryClient.getQueryData(["document", document.id])).toBeUndefined();
   expect(onDeleted).toHaveBeenCalledOnce();
   expect(navigate).toHaveBeenCalledWith({ to: "/documents" });
 });
@@ -89,8 +124,22 @@ test("shows save and delete errors", async () => {
   renderEditor();
 
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
-  expect(await screen.findByText("Could not save changes.")).toBeTruthy();
+  expect((await screen.findByRole("alert")).textContent).toBe("Could not save changes.");
 
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-  expect(await screen.findByText("Could not delete document.")).toBeTruthy();
+  expect((await screen.findByRole("alert")).textContent).toBe("Could not delete document.");
+});
+
+test("announces pending and saved states", async () => {
+  const save = deferred<Document>();
+  updateDocument.mockReturnValueOnce(save.promise);
+  renderEditor();
+
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  expect((await screen.findByRole("status")).textContent).toBe("Saving...");
+
+  save.resolve(document);
+
+  await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Saved"));
 });
