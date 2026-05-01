@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  readiness:
+    name: Vite+ readiness
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version: "22.12.0"
+          run-install: false
+          cache: true
+
+      # CI must go through Vite+; do not call pnpm, npm, or Yarn directly here.
+      - name: Install dependencies
+        run: vp install
+
+      - name: Run readiness checks
+        run: vp run ready
