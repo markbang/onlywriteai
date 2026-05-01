@@ -1,10 +1,12 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { expect, test, vi } from "vite-plus/test";
+import { beforeEach, expect, test, vi } from "vite-plus/test";
 import {
   createDocumentSource,
   deleteDocumentSource,
+  linkDocumentSource,
   listDocumentSources,
+  listSources,
   updateDocumentSource,
 } from "../api/documents.ts";
 import { createQueryClient } from "../query.ts";
@@ -14,9 +16,17 @@ vi.mock("../api/documents.ts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/documents.ts")>()),
   createDocumentSource: vi.fn(),
   deleteDocumentSource: vi.fn(),
+  linkDocumentSource: vi.fn(),
   listDocumentSources: vi.fn(),
+  listSources: vi.fn(),
   updateDocumentSource: vi.fn(),
 }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(listDocumentSources).mockResolvedValue([]);
+  vi.mocked(listSources).mockResolvedValue([]);
+});
 
 function renderPanel() {
   const queryClient = createQueryClient();
@@ -43,12 +53,12 @@ test("renders source list items", async () => {
   vi.mocked(listDocumentSources).mockResolvedValue([
     {
       id: "source-1",
-      documentId: "doc-1",
       type: "rss",
       title: "Research feed",
       note: "Track this feed.",
       url: "https://example.com/rss",
       fileName: null,
+      tags: ["research"],
       createdAt: 1,
       updatedAt: 1,
     },
@@ -60,18 +70,19 @@ test("renders source list items", async () => {
   expect(screen.getAllByText("RSS").length).toBeGreaterThan(0);
   expect(screen.getByText("Track this feed.")).toBeTruthy();
   expect(screen.getByText("https://example.com/rss")).toBeTruthy();
+  expect(screen.getByText("research")).toBeTruthy();
 });
 
 test("creates a source", async () => {
   vi.mocked(listDocumentSources).mockResolvedValue([]);
   vi.mocked(createDocumentSource).mockResolvedValue({
     id: "source-1",
-    documentId: "doc-1",
     type: "text",
     title: "Quote",
     note: "Useful quote",
     url: null,
     fileName: null,
+    tags: ["quote"],
     createdAt: 1,
     updatedAt: 1,
   });
@@ -84,6 +95,9 @@ test("creates a source", async () => {
   fireEvent.change(screen.getByLabelText("Source note"), {
     target: { value: "Useful quote" },
   });
+  fireEvent.change(screen.getByLabelText("Tags"), {
+    target: { value: "quote, quote" },
+  });
   fireEvent.click(screen.getByRole("button", { name: "Add source" }));
 
   await waitFor(() =>
@@ -93,44 +107,84 @@ test("creates a source", async () => {
       note: "Useful quote",
       url: undefined,
       fileName: undefined,
+      tags: ["quote"],
     }),
   );
 });
 
-test("shows type-specific URL and file name fields", async () => {
+test("shows URL and file fields", async () => {
   vi.mocked(listDocumentSources).mockResolvedValue([]);
 
   renderPanel();
 
   fireEvent.change(await screen.findByLabelText("Source type"), { target: { value: "rss" } });
   expect(screen.getByLabelText("Source URL")).toBeTruthy();
-
-  fireEvent.change(screen.getByLabelText("Source type"), { target: { value: "pdf" } });
   expect(screen.getByLabelText("File name")).toBeTruthy();
+});
+
+test("attaches an existing source", async () => {
+  vi.mocked(listDocumentSources).mockResolvedValue([]);
+  vi.mocked(listSources).mockResolvedValue([
+    {
+      id: "source-2",
+      type: "pdf",
+      title: "Shared PDF",
+      note: "",
+      url: null,
+      fileName: "shared.pdf",
+      tags: [],
+      documents: [],
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  ]);
+  vi.mocked(linkDocumentSource).mockResolvedValue({
+    id: "source-2",
+    type: "pdf",
+    title: "Shared PDF",
+    note: "",
+    url: null,
+    fileName: "shared.pdf",
+    tags: [],
+    createdAt: 1,
+    updatedAt: 1,
+  });
+
+  renderPanel();
+
+  await screen.findByText("Shared PDF");
+  fireEvent.change(screen.getByLabelText("Existing source"), {
+    target: { value: "source-2" },
+  });
+  const attachButton = screen.getByRole("button", { name: "Attach source" });
+  await waitFor(() => expect(attachButton).not.toHaveProperty("disabled", true));
+  fireEvent.click(attachButton);
+
+  await waitFor(() => expect(linkDocumentSource).toHaveBeenCalledWith("doc-1", "source-2"));
 });
 
 test("updates and deletes a source", async () => {
   vi.mocked(listDocumentSources).mockResolvedValue([
     {
       id: "source-1",
-      documentId: "doc-1",
       type: "text",
       title: "Old title",
       note: "Old note",
       url: null,
       fileName: null,
+      tags: ["old"],
       createdAt: 1,
       updatedAt: 1,
     },
   ]);
   vi.mocked(updateDocumentSource).mockResolvedValue({
     id: "source-1",
-    documentId: "doc-1",
     type: "text",
     title: "New title",
     note: "Old note",
     url: null,
     fileName: null,
+    tags: ["new"],
     createdAt: 1,
     updatedAt: 2,
   });
@@ -148,9 +202,10 @@ test("updates and deletes a source", async () => {
       note: "Old note",
       url: undefined,
       fileName: undefined,
+      tags: ["old"],
     }),
   );
 
-  fireEvent.click(screen.getByRole("button", { name: "Delete Old title" }));
+  fireEvent.click(screen.getByRole("button", { name: "Detach Old title" }));
   await waitFor(() => expect(deleteDocumentSource).toHaveBeenCalledWith("doc-1", "source-1"));
 });

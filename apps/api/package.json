@@ -10,7 +10,9 @@
     "check": "vp check"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "catalog:",
     "@hono/node-server": "catalog:",
+    "ai": "catalog:",
     "better-sqlite3": "catalog:",
     "drizzle-orm": "catalog:",
     "hono": "catalog:"

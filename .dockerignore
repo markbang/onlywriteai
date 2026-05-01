@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+.git
+.github
+.vite-hooks
+logs
+*.log
+*.local
+apps/api/data
+apps/website/dist
+packages/utils/dist
+.DS_Store

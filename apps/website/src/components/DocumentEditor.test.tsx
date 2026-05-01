@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { expect, test, vi } from "vite-plus/test";
+import { beforeEach, expect, test, vi } from "vite-plus/test";
 import type { Document } from "../api/documents.ts";
 import { createQueryClient } from "../query.ts";
 import { DocumentEditor } from "./DocumentEditor.tsx";
@@ -56,24 +56,38 @@ function deferred<T>() {
   return { promise, reject, resolve };
 }
 
-test("renders editable document fields and action buttons", () => {
+beforeEach(() => {
+  updateDocument.mockReset();
+  deleteDocument.mockReset();
+  navigate.mockReset();
+});
+
+function editRenderedText(currentText: string, nextText: string) {
+  const field = screen.getByTestId("document-markdown-editor");
+  expect(field.textContent).toContain(currentText);
+  field.textContent = nextText;
+  fireEvent.input(field);
+}
+
+test("renders editable document fields and hides document action buttons", () => {
   renderEditor();
 
   expect(screen.getByLabelText("Title")).toHaveProperty("value", "Draft title");
-  expect(screen.getByLabelText("Content")).toHaveProperty("value", "Draft body");
-  expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Delete" })).toBeTruthy();
+  expect(screen.getByTestId("document-markdown-editor").textContent).toBe("Draft body");
+  expect(screen.queryByRole("button", { name: "Save document" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Delete document" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "AI agent" })).toBeNull();
 });
 
-test("saves edited title and content", async () => {
+test("saves edited title and content with the keyboard shortcut", async () => {
   const updatedDocument = { ...document, title: "Updated title", content: "Updated body" };
   updateDocument.mockResolvedValueOnce(updatedDocument);
   const { queryClient } = renderEditor();
   queryClient.setQueryData(["document", document.id], document);
 
   fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Updated title" } });
-  fireEvent.change(screen.getByLabelText("Content"), { target: { value: "Updated body" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  editRenderedText("Draft body", "Updated body");
+  fireEvent.keyDown(window, { key: "s", ctrlKey: true });
 
   expect(await screen.findByText("Saved")).toBeTruthy();
   expect(updateDocument).toHaveBeenCalledWith(document.id, {
@@ -90,44 +104,27 @@ test("does not mark a stale save response as saved or cache stale fields", async
   queryClient.setQueryData(["document", document.id], document);
 
   fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Submitted title" } });
-  fireEvent.change(screen.getByLabelText("Content"), { target: { value: "Submitted body" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  editRenderedText("Draft body", "Submitted body");
+  fireEvent.keyDown(window, { key: "s", ctrlKey: true });
   fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Newer title" } });
-  fireEvent.change(screen.getByLabelText("Content"), { target: { value: "Newer body" } });
+  editRenderedText("Submitted body", "Newer body");
 
   save.resolve({ ...document, title: "Submitted title", content: "Submitted body" });
 
   await waitFor(() => expect(updateDocument).toHaveBeenCalledOnce());
-  await waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeTruthy());
   expect(screen.queryByText("Saved")).toBeNull();
   expect(screen.getByLabelText("Title")).toHaveProperty("value", "Newer title");
-  expect(screen.getByLabelText("Content")).toHaveProperty("value", "Newer body");
+  expect(screen.getByTestId("document-markdown-editor").textContent).toBe("Newer body");
   expect(queryClient.getQueryData(["document", document.id])).toEqual(document);
 });
 
-test("deletes the document and notifies parent", async () => {
-  deleteDocument.mockResolvedValueOnce(undefined);
-  const { onDeleted, queryClient } = renderEditor();
-  queryClient.setQueryData(["document", document.id], document);
-
-  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-
-  await waitFor(() => expect(deleteDocument).toHaveBeenCalledWith(document.id));
-  expect(queryClient.getQueryData(["document", document.id])).toBeUndefined();
-  expect(onDeleted).toHaveBeenCalledOnce();
-  expect(navigate).toHaveBeenCalledWith({ to: "/documents" });
-});
-
-test("shows save and delete errors", async () => {
+test("shows save errors", async () => {
   updateDocument.mockRejectedValueOnce(new Error("save failed"));
-  deleteDocument.mockRejectedValueOnce(new Error("delete failed"));
   renderEditor();
 
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  fireEvent.keyDown(window, { key: "s", ctrlKey: true });
   expect((await screen.findByRole("alert")).textContent).toBe("Could not save changes.");
-
-  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-  expect((await screen.findByRole("alert")).textContent).toBe("Could not delete document.");
+  expect(deleteDocument).not.toHaveBeenCalled();
 });
 
 test("announces pending and saved states", async () => {
@@ -135,11 +132,75 @@ test("announces pending and saved states", async () => {
   updateDocument.mockReturnValueOnce(save.promise);
   renderEditor();
 
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  fireEvent.keyDown(window, { key: "s", ctrlKey: true });
 
   expect((await screen.findByRole("status")).textContent).toBe("Saving...");
 
   save.resolve(document);
 
   await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Saved"));
+});
+
+test("saves with the keyboard shortcut", async () => {
+  updateDocument.mockResolvedValueOnce(document);
+  renderEditor();
+
+  fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Shortcut title" } });
+  fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+
+  await waitFor(() =>
+    expect(updateDocument).toHaveBeenCalledWith(document.id, {
+      title: "Shortcut title",
+      content: "Draft body",
+    }),
+  );
+});
+
+test("keeps slash input inside the Milkdown editor", async () => {
+  renderEditor();
+
+  editRenderedText("Draft body", "/");
+
+  expect(screen.getByTestId("document-markdown-editor").textContent).toBe("/");
+});
+
+test("saves code block markdown from the Milkdown editor", async () => {
+  updateDocument.mockResolvedValueOnce({
+    ...document,
+    content: "```ts\nconsole.log('OnlyWrite')\n```",
+  });
+  renderEditor();
+
+  editRenderedText("Draft body", "```ts\nconsole.log('OnlyWrite')\n```");
+  fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+
+  await waitFor(() =>
+    expect(updateDocument).toHaveBeenCalledWith(document.id, {
+      title: "Draft title",
+      content: "```ts\nconsole.log('OnlyWrite')\n```",
+    }),
+  );
+});
+
+test("syncs external document content updates into the Milkdown editor", async () => {
+  const { rerender, queryClient } = renderEditor();
+  const updatedDocument = { ...document, content: "Updated by agent" };
+  updateDocument.mockResolvedValueOnce(updatedDocument);
+  queryClient.setQueryData(["document", document.id], updatedDocument);
+
+  rerender(
+    <QueryClientProvider client={queryClient}>
+      <DocumentEditor document={updatedDocument} />
+    </QueryClientProvider>,
+  );
+
+  expect(await screen.findByText("Updated by agent")).toBeTruthy();
+  fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+
+  await waitFor(() =>
+    expect(updateDocument).toHaveBeenCalledWith(document.id, {
+      title: "Draft title",
+      content: "Updated by agent",
+    }),
+  );
 });

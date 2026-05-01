@@ -11,12 +11,24 @@
     "check": "vp check"
   },
   "dependencies": {
+    "@heroui/react": "catalog:",
+    "@heroui/use-theme": "catalog:",
+    "@iconify-json/lucide": "catalog:",
+    "@milkdown/crepe": "catalog:",
+    "@milkdown/kit": "catalog:",
+    "@radix-ui/colors": "catalog:",
+    "@tailwindcss/vite": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
+    "@unocss/preset-icons": "catalog:",
     "@unocss/reset": "catalog:",
     "@vitejs/plugin-react": "catalog:",
+    "framer-motion": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "shiki": "catalog:",
+    "streamdown": "catalog:",
+    "tailwindcss": "catalog:",
     "unocss": "catalog:"
   },
   "devDependencies": {

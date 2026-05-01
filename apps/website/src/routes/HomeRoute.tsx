@@ -21,37 +21,48 @@ export function HomeRoute() {
 
   return (
     <section className="mx-auto flex min-h-[70vh] max-w-3xl flex-col justify-center">
-      <p className="mb-3 text-sm text-neutral-500">Focused local writing</p>
-      <h1 className="mb-4 text-4xl font-semibold leading-tight text-neutral-950">
+      <p className="mb-3 text-sm text-muted">Focused local writing</p>
+      <h1 className="mb-4 text-4xl font-semibold leading-tight text-foreground">
         Write without setup.
       </h1>
-      <p className="mb-8 max-w-2xl text-base leading-7 text-neutral-600">
+      <p className="mb-8 max-w-2xl text-base leading-7 text-muted">
         OnlyWrite keeps the first slice intentionally small: local drafts, a quiet editor, and fast
         saves through your local API.
       </p>
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
-          className="rounded bg-neutral-950 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          className="inline-flex h-10 w-10 items-center justify-center rounded bg-accent text-accent-foreground disabled:opacity-60"
           disabled={createMutation.isPending}
           onClick={() => createMutation.mutate()}
+          aria-label="New document"
+          title="New document"
         >
-          {createMutation.isPending ? "Creating..." : "New document"}
+          <span
+            className={
+              createMutation.isPending
+                ? "i-lucide-loader-circle h-5 w-5 animate-spin"
+                : "i-lucide-file-plus h-5 w-5"
+            }
+            aria-hidden="true"
+          />
         </button>
         {latest ? (
           <button
             type="button"
-            className="rounded border border-stone-300 px-4 py-2 text-sm font-medium text-neutral-800"
+            className="inline-flex h-10 w-10 items-center justify-center rounded border border-border text-foreground hover:bg-surface-secondary"
             onClick={() =>
               navigate({ to: "/documents/$documentId", params: { documentId: latest.id } })
             }
+            aria-label="Continue latest"
+            title="Continue latest"
           >
-            Continue latest
+            <span className="i-lucide-arrow-right h-5 w-5" aria-hidden="true" />
           </button>
         ) : null}
       </div>
       {createMutation.isError ? (
-        <p className="mt-4 text-sm text-red-700">Could not create a document.</p>
+        <p className="mt-4 text-sm text-danger">Could not create a document.</p>
       ) : null}
     </section>
   );

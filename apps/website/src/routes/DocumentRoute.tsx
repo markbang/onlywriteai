@@ -1,28 +1,60 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
+import { useState } from "react";
 import { getDocument } from "../api/documents.ts";
 import { DocumentEditor } from "../components/DocumentEditor.tsx";
 import { SourcePanel } from "../components/SourcePanel.tsx";
 
 export function DocumentRoute() {
   const { documentId } = useParams({ from: "/documents/$documentId" });
+  const [showSources, setShowSources] = useState(true);
   const document = useQuery({
     queryKey: ["document", documentId],
     queryFn: () => getDocument(documentId),
   });
 
   if (document.isLoading) {
-    return <p className="text-sm text-neutral-500">Loading document...</p>;
+    return <p className="text-sm text-muted">Loading document...</p>;
   }
 
   if (document.isError || !document.data) {
-    return <p className="text-sm text-red-700">Could not load this document.</p>;
+    return <p className="text-sm text-danger">Could not load this document.</p>;
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <SourcePanel documentId={documentId} />
-      <DocumentEditor document={document.data} />
-    </div>
+    <section className="relative h-[calc(100vh-57px)] min-h-[620px]">
+      <div className="absolute left-3 top-3 z-20">
+        <button
+          className="inline-flex h-9 w-9 items-center justify-center rounded border border-border bg-surface text-foreground shadow-sm hover:bg-surface-secondary"
+          type="button"
+          onClick={() => setShowSources((current) => !current)}
+          aria-label={showSources ? "Hide sources" : "Show sources"}
+          title={showSources ? "Hide sources" : "Show sources"}
+        >
+          <span
+            className={
+              showSources ? "i-lucide-panel-left-close h-5 w-5" : "i-lucide-panel-left-open h-5 w-5"
+            }
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+      <div
+        className={
+          showSources
+            ? "grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]"
+            : "grid h-full min-h-0"
+        }
+      >
+        {showSources ? (
+          <div className="min-h-0">
+            <SourcePanel documentId={documentId} />
+          </div>
+        ) : null}
+        <div className="min-w-0">
+          <DocumentEditor document={document.data} isCentered={false} />
+        </div>
+      </div>
+    </section>
   );
 }

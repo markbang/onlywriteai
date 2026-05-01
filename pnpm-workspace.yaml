@@ -4,18 +4,32 @@ packages:
   - tools/*
 
 catalog:
+  "@ai-sdk/openai-compatible": ^2.0.42
+  "@heroui/react": ^3.0.3
+  "@heroui/use-theme": ^2.1.10
   "@hono/node-server": ^1.19.14
+  "@iconify-json/lucide": ^1.2.104
+  "@milkdown/crepe": ^7.20.0
+  "@milkdown/kit": ^7.20.0
+  "@radix-ui/colors": ^3.0.0
+  "@tailwindcss/vite": ^4.2.4
   "@tanstack/react-query": ^5.100.5
   "@tanstack/react-router": ^1.168.25
   "@types/jsdom": ^28.0.1
   "@types/node": ^24
+  "@unocss/preset-icons": ^66.6.8
   "@unocss/reset": ^66.6.8
-  "@vitejs/plugin-react": ^4.7.0
+  "@vitejs/plugin-react": latest
+  ai: ^6.0.169
   better-sqlite3: ^11.10.0
   drizzle-orm: ^0.44.7
+  framer-motion: ^12.38.0
   hono: ^4.12.15
   react: ^19.2.5
   react-dom: ^19.2.5
+  shiki: ^4.0.2
+  streamdown: ^2.5.0
+  tailwindcss: ^4.2.4
   typescript: ^5
   unocss: ^66.6.8
   vite: npm:@voidzero-dev/vite-plus-core@latest
