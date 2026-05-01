@@ -20,9 +20,14 @@ jobs:
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@v1
         with:
-          node-version: "22.12.0"
+          node-version: "22"
           run-install: false
           cache: true
+
+      - name: Print tool versions
+        run: |
+          node --version
+          vp --version
 
       # CI must go through Vite+; do not call pnpm, npm, or Yarn directly here.
       - name: Install dependencies
