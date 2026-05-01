@@ -756,7 +756,7 @@ export function AiComposer({
         (event.output as { documentId?: unknown }).documentId === documentId
       ) {
         queryClient.removeQueries({ queryKey: ["document", documentId], exact: true });
-        void navigate({ to: "/documents" });
+        void navigate({ to: "/" });
       }
     }
 

@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   createSource as createGlobalSource,
@@ -415,14 +414,13 @@ export function SourcesRoute() {
                       {typeLabels[source.type]}
                     </span>
                     {(source.documents ?? []).map((document) => (
-                      <Link
+                      <a
                         key={document.id}
-                        to="/documents/$documentId"
-                        params={{ documentId: document.id }}
+                        href={`/documents/${document.id}`}
                         className="text-xs text-muted hover:text-foreground"
                       >
                         {document.title}
-                      </Link>
+                      </a>
                     ))}
                   </div>
                   <h2 className="mt-1 break-words text-base font-semibold text-foreground">

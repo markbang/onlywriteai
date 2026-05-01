@@ -64,6 +64,35 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.landing-shell {
+  position: relative;
+  min-height: 100vh;
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--accent) 9%, transparent), transparent 32%),
+    linear-gradient(180deg, var(--background), var(--surface-secondary));
+}
+
+.landing-shell::before {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--foreground) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--foreground) 5%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 44px 44px;
+  content: "";
+  mask-image: linear-gradient(180deg, rgb(0 0 0 / 0.56), transparent 68%);
+}
+
+.landing-title {
+  font-family: Georgia, "Times New Roman", ui-serif, serif;
+  letter-spacing: 0;
+}
+
 .dark {
   color-scheme: dark;
   --surface: var(--slate-2);

@@ -208,7 +208,7 @@ export function DocumentEditor({ document, isCentered = true, onDeleted }: Docum
       queryClient.removeQueries({ queryKey: ["document", document.id], exact: true });
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
       onDeleted?.();
-      void navigate({ to: "/documents" });
+      void navigate({ to: "/" });
     },
   });
 

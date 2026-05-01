@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "@tanstack/react-router";
+import { useLocation } from "@tanstack/react-router";
 import { useState } from "react";
 import { getDocument } from "../api/documents.ts";
 import { DocumentEditor } from "../components/DocumentEditor.tsx";
 import { SourcePanel } from "../components/SourcePanel.tsx";
 
 export function DocumentRoute() {
-  const { documentId } = useParams({ from: "/documents/$documentId" });
+  const documentId = useLocation().pathname.split("/").filter(Boolean).at(1) ?? "";
   const [showSources, setShowSources] = useState(true);
   const document = useQuery({
     queryKey: ["document", documentId],
