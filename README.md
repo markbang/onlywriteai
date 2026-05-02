@@ -1,12 +1,63 @@
 # OnlyWrite
 
-OnlyWrite is a local-first writing app with AI-assisted drafting, source management, Logto auth,
-and a Hono API.
+OnlyWrite is a local-first personal writing resource system. Its primary product surface is the
+`onlywrite` CLI: create Notes, import References, search your local archive, and open a read-only
+local Resource Viewer.
 
-## Apps
+OnlyWrite does not require a hosted account or cloud service. By default it stores data in
+`~/.onlywrite/onlywrite.sqlite`.
 
-- `apps/website`: React, TanStack Router, TanStack Query, UnoCSS.
-- `apps/api`: Hono, Drizzle ORM, SQLite, Logto, OpenAI-compatible LLM integration.
+## Install And Use
+
+For users, the npm package installs one binary: `onlywrite`.
+
+```bash
+npm install -g onlywrite
+onlywrite doctor
+```
+
+Or run it without a global install:
+
+```bash
+npx onlywrite --help
+```
+
+## Quick Start
+
+```bash
+printf 'Draft opening paragraph' | onlywrite note create --title "Opening" --stdin
+onlywrite reference import https://example.com/article
+onlywrite resource search "opening"
+onlywrite resource read <resource-id>
+onlywrite web
+onlywrite doctor
+```
+
+Add `--json` to commands for stable machine-readable output used by scripts and external agents:
+
+```bash
+onlywrite resource list --json
+onlywrite resource read <resource-id> --json
+```
+
+## Resource Model
+
+- `Note`: user-authored or saved Markdown content.
+- `Reference`: external material with a local text snapshot, URL, and optional note.
+- `Resource Link`: a structured link from a Note to a Reference.
+- `Trash`: deleted resources stay recoverable until purged.
+
+## Repo Layout
+
+- `tools/cli`: the installable OnlyWrite CLI package.
+- `apps/website`: public landing page.
+- `.agents/skills/onlywrite-resource-operator`: agent instructions for operating resources through
+  the CLI.
+- `CONTEXT.md`: product glossary and domain decisions.
+- `docs/adr`: architecture decisions.
+
+Legacy website/API code still exists in the repository while the product shape is being simplified,
+but the current direction is local-only CLI first.
 
 ## Development
 
@@ -14,21 +65,6 @@ Install dependencies:
 
 ```bash
 vp install
-```
-
-Create local API config:
-
-```bash
-cp apps/api/.env.example apps/api/.env.local
-```
-
-For local development, set at least the LLM variables if you want AI features. Logto is optional in
-development; when it is not configured the API uses a local user.
-
-Run website and API:
-
-```bash
-vp run dev
 ```
 
 Validate the repo:
@@ -39,64 +75,24 @@ vp run -r test
 vp run -r build
 ```
 
-The default local database is `apps/api/data/onlywrite.sqlite`.
-
-## Production On A VPS
-
-The production target is a single Docker service behind an HTTPS reverse proxy. The API serves both
-`/api/*` requests and the built website.
-
-1. Create production env:
+Run the public landing page locally:
 
 ```bash
-cp .env.example .env
+vp run -F website dev
 ```
 
-2. Fill all placeholder values in `.env`. In production, these are required:
-
-- `APP_BASE_URL`
-- `DATABASE_URL`
-- `AUTH_SESSION_SECRET`
-- `AUTH_SESSION_MAX_AGE_SECONDS` controls the OnlyWrite session cookie lifetime. The default is
-  `2592000` seconds, or 30 days.
-- `LOGTO_APP_ID`
-- `LOGTO_APP_SECRET`
-- `LOGTO_ISSUER`
-- `LOGTO_JWKS_URI`
-- `LLM_API_KEY`
-- `LLM_MODEL`
-
-3. Build and start:
+Run the CLI from source:
 
 ```bash
-docker compose up -d --build
+vp run -F onlywrite build
+ONLYWRITE_HOME=/tmp/onlywrite-demo node tools/cli/dist/cli.mjs resource list
+ONLYWRITE_HOME=/tmp/onlywrite-demo node tools/cli/dist/cli.mjs doctor
 ```
 
-4. Configure your reverse proxy to forward HTTPS traffic to `http://127.0.0.1:8787` and preserve
-   `X-Forwarded-Proto`.
+## Safety
 
-Health endpoints:
-
-- `/health`: process is alive.
-- `/ready`: database and required production configuration are ready.
-
-## Backups
-
-Create a SQLite backup from the host:
-
-```bash
-DATABASE_URL=apps/api/data/onlywrite.sqlite BACKUP_DIR=backups ./scripts/backup-sqlite.sh
-```
-
-For Docker Compose, the database is stored in the `onlywrite-data` volume. Either run the backup from
-a host path where the database is mounted, or copy the database out of the volume before running the
-script. Keep `backups/` outside the container lifecycle.
-
-## Configuration Notes
-
-- Never commit `.env`, `.env.local`, SQLite files, or backups.
-- `LLM_STREAM_API=responses` is the default. Use `LLM_STREAM_API=chat` for providers whose thinking
-  stream is only exposed through chat completions.
-- `LLM_TIMEOUT_MS` controls LLM request timeout. `SOURCE_FETCH_TIMEOUT_MS` controls AI source import
-  URL fetch timeout.
-- Source import refuses localhost and private-network URLs to reduce SSRF risk.
+- `reference import` only accepts `http` and `https` URLs and rejects localhost/private-network hosts
+  before fetching.
+- `delete`, `unlink`, and `purge` require `--yes`.
+- `purge` is irreversible.
+- The local web viewer opened by `onlywrite web` is read-only.

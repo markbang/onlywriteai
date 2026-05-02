@@ -2,8 +2,9 @@
 
 import Database from "better-sqlite3";
 import { createServer, type Server } from "node:http";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 type CliIO = {
   argv: string[];
@@ -59,6 +60,7 @@ type ResourceUpdate = {
 };
 
 const localUserId = "local-user";
+const version = "0.1.0";
 
 function home(env: Record<string, string | undefined>) {
   return env.ONLYWRITE_HOME || join(env.HOME || process.cwd(), ".onlywrite");
@@ -185,6 +187,141 @@ function writeJson(stdout: (chunk: string) => void, value: unknown) {
 
 function writeJsonError(stdout: (chunk: string) => void, message: string) {
   writeJson(stdout, { error: { message }, ok: false, schemaVersion: 1 });
+}
+
+function writeText(stdout: (chunk: string) => void, value: string) {
+  stdout(`${value.replace(/\n?$/, "\n")}`);
+}
+
+function helpText() {
+  return `OnlyWrite
+
+Local-first personal writing resources.
+
+Usage:
+  onlywrite resource list [--type note|reference] [--trash] [--json]
+  onlywrite resource search <query> [--type note|reference] [--json]
+  onlywrite resource read <id> [--json]
+  onlywrite note create --title <title> (--text <text> | --file <path> | --stdin) [--json]
+  onlywrite reference import <url> [--json]
+  onlywrite reference create --title <title> --snapshot <text> [--url <url>] [--json]
+  onlywrite resource update <id> [--title <title>] [--text <text>|--snapshot <text>|--file <path>|--stdin] [--json]
+  onlywrite resource delete <id> --yes [--json]
+  onlywrite resource restore <id> [--json]
+  onlywrite resource purge <id> --yes [--json]
+  onlywrite resource link <note-id> <reference-id> [--json]
+  onlywrite resource unlink <note-id> <reference-id> --yes [--json]
+  onlywrite web [--port <port>] [--json]
+  onlywrite doctor [--json]
+
+Data:
+  Stores resources in ~/.onlywrite/onlywrite.sqlite by default.
+  Set ONLYWRITE_HOME to use another local store.
+`;
+}
+
+function runDoctor(db: Database.Database, env: Record<string, string | undefined>) {
+  const path = databasePath(env);
+  db.prepare("select count(*) as count from resources").get();
+  return {
+    database: { ok: true, path },
+    home: home(env),
+    node: process.version,
+    version,
+  };
+}
+
+function writeDoctor(
+  stdout: (chunk: string) => void,
+  json: boolean,
+  doctor: ReturnType<typeof runDoctor>,
+) {
+  if (json) {
+    writeJson(stdout, { doctor, ok: true, schemaVersion: 1 });
+    return;
+  }
+
+  writeText(
+    stdout,
+    [
+      "OnlyWrite doctor",
+      `Version: ${doctor.version}`,
+      `Node: ${doctor.node}`,
+      `Local store: ${doctor.home}`,
+      `Database: ${doctor.database.path}`,
+      "SQLite store: ok",
+    ].join("\n"),
+  );
+}
+
+function resourceBody(resource: Resource) {
+  return resource.type === "reference" ? resource.reference.snapshot : resource.note.content;
+}
+
+function resourceKindLabel(resource: Resource) {
+  return resource.type === "reference" ? "reference" : "note";
+}
+
+function formatResourceList(resources: Resource[]) {
+  if (resources.length === 0) {
+    return "No resources found.";
+  }
+
+  return resources
+    .map((resource) => `${resource.id}  ${resourceKindLabel(resource)}  ${resource.title}`)
+    .join("\n");
+}
+
+function formatResourceRead(resource: Resource) {
+  const metadata = [`id: ${resource.id}`, `type: ${resourceKindLabel(resource)}`];
+  if (resource.type === "reference" && resource.reference.url) {
+    metadata.push(`url: ${resource.reference.url}`);
+  }
+  if (resource.tags.length > 0) {
+    metadata.push(`tags: ${resource.tags.join(", ")}`);
+  }
+
+  return [`# ${resource.title}`, "", metadata.join("\n"), "", resourceBody(resource)].join("\n");
+}
+
+function writeResource(
+  stdout: (chunk: string) => void,
+  json: boolean,
+  resource: Resource,
+  text?: string,
+) {
+  if (json) {
+    writeJson(stdout, { ok: true, resource, schemaVersion: 1 });
+    return;
+  }
+
+  writeText(stdout, text ?? formatResourceRead(resource));
+}
+
+function writeResourceCollection(
+  stdout: (chunk: string) => void,
+  json: boolean,
+  resources: Resource[],
+) {
+  if (json) {
+    writeJson(stdout, { ok: true, resources, schemaVersion: 1 });
+    return;
+  }
+
+  writeText(stdout, formatResourceList(resources));
+}
+
+function writeLink(
+  stdout: (chunk: string) => void,
+  json: boolean,
+  link: { noteId: string; referenceId: string },
+) {
+  if (json) {
+    writeJson(stdout, { link, ok: true, schemaVersion: 1 });
+    return;
+  }
+
+  writeText(stdout, `Linked ${link.noteId} -> ${link.referenceId}`);
 }
 
 async function readResourceText(
@@ -390,8 +527,13 @@ export async function runCli({
 }: CliIO) {
   argv = normalizeArgv(argv);
   const json = hasFlag(argv, "--json");
-  if (!json) {
-    return error(stderr, "Only --json output is supported for this command");
+  if (hasFlag(argv, "--version") || hasFlag(argv, "-v")) {
+    writeText(stdout, version);
+    return 0;
+  }
+  if (argv.length === 0 || hasFlag(argv, "--help") || hasFlag(argv, "-h")) {
+    writeText(stdout, helpText());
+    return 0;
   }
 
   const db = openDatabase(databasePath(env));
@@ -452,11 +594,21 @@ export async function runCli({
       onServer?.(server);
       const address = server.address();
       const actualPort = typeof address === "object" && address ? address.port : port;
-      writeJson(stdout, { ok: true, schemaVersion: 1, url: `http://127.0.0.1:${actualPort}/` });
+      const url = `http://127.0.0.1:${actualPort}/`;
+      if (json) {
+        writeJson(stdout, { ok: true, schemaVersion: 1, url });
+      } else {
+        writeText(stdout, `OnlyWrite local viewer: ${url}`);
+      }
       return 0;
     }
 
     if (argv[0] !== "resource") {
+      if (argv[0] === "doctor") {
+        writeDoctor(stdout, json, runDoctor(db, env));
+        return 0;
+      }
+
       return error(stderr, "Unknown command");
     }
 
@@ -504,7 +656,7 @@ export async function runCli({
         .prepare("select * from resources where id = ? and user_id = ?")
         .get(id, localUserId) as ResourceRow;
       upsertSearchIndex(db, row);
-      writeJson(stdout, { ok: true, resource: toResource(row, db), schemaVersion: 1 });
+      writeResource(stdout, json, toResource(row, db), `Created ${type}: ${title}\n${id}`);
       return 0;
     }
 
@@ -536,7 +688,7 @@ export async function runCli({
         .prepare("select * from resources where id = ? and user_id = ?")
         .get(id, localUserId) as ResourceRow;
       upsertSearchIndex(db, row);
-      writeJson(stdout, { ok: true, resource: toResource(row, db), schemaVersion: 1 });
+      writeResource(stdout, json, toResource(row, db), `Imported reference: ${title}\n${id}`);
       return 0;
     }
 
@@ -578,7 +730,7 @@ export async function runCli({
         writeJsonError(stdout, "Resource not found");
         return 1;
       }
-      writeJson(stdout, { ok: true, resource: toResource(row, db), schemaVersion: 1 });
+      writeResource(stdout, json, toResource(row, db), `Updated resource: ${row.title}\n${id}`);
       return 0;
     }
 
@@ -596,11 +748,11 @@ export async function runCli({
            order by updated_at desc, rowid desc`,
         )
         .all(...(type ? [localUserId, type] : [localUserId])) as ResourceRow[];
-      writeJson(stdout, {
-        ok: true,
-        resources: rows.map((row) => toResource(row, db)),
-        schemaVersion: 1,
-      });
+      writeResourceCollection(
+        stdout,
+        json,
+        rows.map((row) => toResource(row, db)),
+      );
       return 0;
     }
 
@@ -625,11 +777,11 @@ export async function runCli({
            order by bm25(resource_search), resources.updated_at desc`,
         )
         .all(...(type ? [query, localUserId, type] : [query, localUserId])) as ResourceRow[];
-      writeJson(stdout, {
-        ok: true,
-        resources: rows.map((row) => toResource(row, db)),
-        schemaVersion: 1,
-      });
+      writeResourceCollection(
+        stdout,
+        json,
+        rows.map((row) => toResource(row, db)),
+      );
       return 0;
     }
 
@@ -656,7 +808,7 @@ export async function runCli({
       db.prepare(
         "update resources set deleted_at = ?, updated_at = ? where id = ? and user_id = ?",
       ).run(now, now, id, localUserId);
-      writeJson(stdout, { ok: true, resource: toResource(existing, db), schemaVersion: 1 });
+      writeResource(stdout, json, toResource(existing, db), `Moved to Trash: ${existing.title}`);
       return 0;
     }
 
@@ -679,7 +831,7 @@ export async function runCli({
       db.prepare(
         "update resources set deleted_at = null, updated_at = ? where id = ? and user_id = ?",
       ).run(Date.now(), id, localUserId);
-      writeJson(stdout, { ok: true, resource: toResource(existing, db), schemaVersion: 1 });
+      writeResource(stdout, json, toResource(existing, db), `Restored: ${existing.title}`);
       return 0;
     }
 
@@ -704,7 +856,7 @@ export async function runCli({
       }
       db.prepare("delete from resource_search where resource_id = ?").run(id);
       db.prepare("delete from resources where id = ? and user_id = ?").run(id, localUserId);
-      writeJson(stdout, { ok: true, resource: toResource(existing, db), schemaVersion: 1 });
+      writeResource(stdout, json, toResource(existing, db), `Purged: ${existing.title}`);
       return 0;
     }
 
@@ -735,7 +887,7 @@ export async function runCli({
       db.prepare(
         "insert or ignore into resource_links (note_id, reference_id, created_at) values (?, ?, ?)",
       ).run(noteId, referenceId, Date.now());
-      writeJson(stdout, { link: { noteId, referenceId }, ok: true, schemaVersion: 1 });
+      writeLink(stdout, json, { noteId, referenceId });
       return 0;
     }
 
@@ -766,7 +918,7 @@ export async function runCli({
         noteId,
         referenceId,
       );
-      writeJson(stdout, { link: { noteId, referenceId }, ok: true, schemaVersion: 1 });
+      writeLink(stdout, json, { noteId, referenceId });
       return 0;
     }
 
@@ -786,7 +938,7 @@ export async function runCli({
         });
         return 1;
       }
-      writeJson(stdout, { ok: true, resource: toResource(row, db), schemaVersion: 1 });
+      writeResource(stdout, json, toResource(row, db));
       return 0;
     }
 
@@ -796,7 +948,15 @@ export async function runCli({
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function isMainModule(importUrl: string, argvPath?: string) {
+  if (!argvPath) {
+    return false;
+  }
+
+  return realpathSync(fileURLToPath(importUrl)) === realpathSync(argvPath);
+}
+
+if (isMainModule(import.meta.url, process.argv[1])) {
   const code = await runCli({ argv: process.argv.slice(2) });
   process.exitCode = code;
 }

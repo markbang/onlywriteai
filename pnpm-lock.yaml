@@ -246,17 +246,17 @@ importers:
   tools/cli:
     dependencies:
       better-sqlite3:
-        specifier: 'catalog:'
+        specifier: ^11.10.0
         version: 11.10.0
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.13
         version: 7.6.13
       '@types/node':
-        specifier: 'catalog:'
+        specifier: ^24.0.0
         version: 24.12.2
       vite-plus:
-        specifier: 'catalog:'
+        specifier: ^0.1.19
         version: 0.1.20(@opentelemetry/api@1.9.0)(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(jsdom@26.1.0)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.10(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
 
 packages:

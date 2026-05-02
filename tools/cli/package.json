@@ -1,22 +1,45 @@
 {
   "name": "onlywrite",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Local-first personal writing resources from the command line.",
+  "keywords": [
+    "cli",
+    "local-first",
+    "notes",
+    "resources",
+    "writing"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/markbang/onlywriteai.git",
+    "directory": "tools/cli"
+  },
   "bin": {
     "onlywrite": "./dist/cli.mjs"
   },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "package.json"
+  ],
   "type": "module",
   "scripts": {
     "build": "vp pack src/cli.ts --out-dir dist --format esm --platform node --target node22",
-    "test": "vp test",
-    "check": "vp check"
+    "check": "vp check",
+    "prepack": "vp pack src/cli.ts --out-dir dist --format esm --platform node --target node22",
+    "test": "vp test"
   },
   "dependencies": {
-    "better-sqlite3": "catalog:"
+    "better-sqlite3": "^11.10.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "catalog:",
-    "vite-plus": "catalog:"
+    "@types/node": "^24.0.0",
+    "vite-plus": "^0.1.19"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }
