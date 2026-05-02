@@ -16,7 +16,7 @@
     "directory": "tools/cli"
   },
   "bin": {
-    "onlywrite": "./dist/cli.mjs"
+    "onlywrite": "dist/cli.mjs"
   },
   "files": [
     "dist",

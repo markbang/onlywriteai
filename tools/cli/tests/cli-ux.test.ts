@@ -143,7 +143,7 @@ test("package manifest is publishable for CLI users", () => {
 
   expect(manifest.private).not.toBe(true);
   expect(manifest.version).toBe("0.1.0");
-  expect(manifest.bin).toEqual({ onlywrite: "./dist/cli.mjs" });
+  expect(manifest.bin).toEqual({ onlywrite: "dist/cli.mjs" });
   expect((manifest as { engines?: { node?: string } }).engines?.node).toBe(">=22.12.0");
   expect((manifest as { scripts?: { prepack?: string } }).scripts?.prepack).toContain(
     "vp pack src/cli.ts",
